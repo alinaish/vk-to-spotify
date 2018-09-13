@@ -9,5 +9,8 @@
   },
   "author": "",
   "license": "ISC",
-  "devDependencies": {}
+  "devDependencies": {},
+  "dependencies": {
+    "node-html-parser": "^1.1.10"
+  }
 }
