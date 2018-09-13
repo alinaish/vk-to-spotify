@@ -1,0 +1,13 @@
+{
+  "name": "vk-to-spotify",
+  "version": "1.0.0",
+  "description": "Script for converting vk playlist to spotify",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "webpack --config webpack.config.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {}
+}
