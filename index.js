@@ -1,6 +1,7 @@
 const fs = require('fs');
 const htmlParser = require('node-html-parser');
-const http = require('http');
+const request = require('request');
+const express = require('express');
 
 function getVKPlaylistFromHtml() {
   const vkHtmlPath = process.argv[2];
@@ -27,28 +28,41 @@ function getVKPlaylistFromHtml() {
   });
 }
 
-// getVKPlaylistFromHtml();
+const app = express();
 
-/* Create an HTTP server to handle responses */
-http
-  .createServer(function(request, response) {
-    const url = request.url;
+app.listen(8888);
 
-    switch (url) {
-      case '/about':
-        const clientId = '2d53491834a9437eb3b5ccb7cdce4832';
-        const scope = encodeURIComponent('playlist-modify-private');
-        const redirectURI = encodeURIComponent('http://localhost:8888');
-        const spotifyAuthUrl = `https://accounts.spotify.com/authorize?response_type=code&client_id=${clientId}&scope=${scope}&redirect_uri=${redirectURI}`;
-        response.writeHead(301, {
-          'Content-Type': 'text/plain',
-          Location: spotifyAuthUrl,
-        });
-        break;
-      default:
-        response.writeHead(200);
-        response.write('Hello World');
-    }
-    response.end();
-  })
-  .listen(8888);
+const secret = 'cbe1a0c113eb4cd58d11a483db488595';
+const clientId = '2d53491834a9437eb3b5ccb7cdce4832';
+const scope = 'playlist-modify-private';
+const redirectURI = 'http://localhost:8888/callback';
+
+app.get('/', (req, res) => {
+  const encodedRedirectURI = encodeURIComponent(
+    'http://localhost:8888/callback'
+  );
+  const encodedScope = encodeURIComponent('playlist-modify-private');
+  const spotifyCodeURL = `https://accounts.spotify.com/authorize?response_type=code&client_id=${clientId}&scope=${encodedScope}&redirect_uri=${encodedRedirectURI}`;
+  res.redirect(spotifyCodeURL);
+});
+
+app.get('/callback', (req, res) => {
+  if (req.query.code) {
+    const tokenReqParams = {
+      url: 'https://accounts.spotify.com/api/token',
+      form: {
+        code: req.query.code,
+        redirect_uri: redirectURI,
+        grant_type: 'authorization_code',
+      },
+      headers: {
+        Authorization:
+          'Basic ' + new Buffer(clientId + ':' + secret).toString('base64'),
+      },
+      json: true,
+    };
+    request.post(tokenReqParams, (error, tokenRes, body) => {
+      console.log(tokenRes.body.access_token);
+    });
+  }
+});

@@ -11,7 +11,9 @@
   "license": "ISC",
   "devDependencies": {},
   "dependencies": {
+    "express": "^4.16.4",
     "node-html-parser": "^1.1.10",
-    "request": "^2.88.0"
+    "request": "^2.88.0",
+    "request-debug": "^0.2.0"
   }
 }
