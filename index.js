@@ -62,18 +62,41 @@ app.get('/callback', (req, res) => {
       json: true,
     };
     request.post(tokenReqParams, (error, tokenRes, body) => {
-      console.log(tokenRes.body.access_token);
       if (tokenRes.body.access_token) {
         const userPropfileReqOptions = {
           url: 'https://api.spotify.com/v1/me',
           headers: {
             Authorization: `Bearer ${tokenRes.body.access_token}`,
           },
+          json: true,
         };
         request.get(
           userPropfileReqOptions,
           (error, userProfileReq, userProfileBody) => {
-            console.log(userProfileBody);
+            console.log(userProfileBody.id);
+            if (userProfileBody.id) {
+              const createPlaylistOptions = {
+                url: `https://api.spotify.com/v1/users/${
+                  userProfileBody.id
+                }/playlists`,
+                headers: {
+                  Authorization: `Bearer ${tokenRes.body.access_token}`,
+                  'Content-Type': 'application/json',
+                },
+                body: {
+                  name: 'test_playlist',
+                  public: false,
+                  description: 'created by nodejs script',
+                },
+                json: true,
+              };
+              request.post(
+                createPlaylistOptions,
+                (error, createPlaylistRes, createPlaylistBody) => {
+                  console.log(createPlaylistBody);
+                }
+              );
+            }
           }
         );
       }
