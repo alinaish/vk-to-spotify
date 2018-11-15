@@ -63,6 +63,20 @@ app.get('/callback', (req, res) => {
     };
     request.post(tokenReqParams, (error, tokenRes, body) => {
       console.log(tokenRes.body.access_token);
+      if (tokenRes.body.access_token) {
+        const userPropfileReqOptions = {
+          url: 'https://api.spotify.com/v1/me',
+          headers: {
+            Authorization: `Bearer ${tokenRes.body.access_token}`,
+          },
+        };
+        request.get(
+          userPropfileReqOptions,
+          (error, userProfileReq, userProfileBody) => {
+            console.log(userProfileBody);
+          }
+        );
+      }
     });
   }
 });
