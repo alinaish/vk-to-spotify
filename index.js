@@ -10,22 +10,16 @@ function getVKPlaylistFromHtml() {
     return;
   }
 
-  fs.readFile(vkHtmlPath, 'utf8', (err, htmlContent) => {
-    if (err) {
-      throw err;
-    }
-
-    const html = htmlParser.parse(htmlContent);
-    const vkPlaylist = html
-      .querySelectorAll('.audio_row__inner')
-      .map(audioRow => {
-        return {
-          artist: audioRow.querySelector('.artist_link').text,
-          track: audioRow.querySelector('._audio_row__title_inner').text,
-        };
-      });
-    console.log(vkPlaylist);
+  const htmlContent = fs.readFileSync(vkHtmlPath, { encoding: 'utf8' });
+  const html = htmlParser.parse(htmlContent);
+  const tracks = html.querySelectorAll('.audio_row__inner').map(audioRow => {
+    return {
+      artist: audioRow.querySelector('.artist_link').text,
+      name: audioRow.querySelector('._audio_row__title_inner').text,
+    };
   });
+
+  return tracks;
 }
 
 const app = express();
@@ -93,7 +87,27 @@ app.get('/callback', (req, res) => {
               request.post(
                 createPlaylistOptions,
                 (error, createPlaylistRes, createPlaylistBody) => {
-                  console.log(createPlaylistBody);
+                  const tracks = getVKPlaylistFromHtml();
+
+                  tracks.forEach(track => {
+                    const artist = track.artist.replace(' ', '+');
+                    const name = track.name.replace(' ', '+');
+                    const searchUrl = `https://api.spotify.com/v1/search?q=${artist}+${name}&type=track`;
+                    const searchReqOptions = {
+                      url: searchUrl,
+                      headers: {
+                        Authorization: `Bearer ${tokenRes.body.access_token}`,
+                      },
+                      json: true,
+                    };
+
+                    request.get(
+                      searchReqOptions,
+                      (error, searchReq, searchReqBody) => {
+                        console.log(track.artist, track.name, searchReqBody);
+                      }
+                    );
+                  });
                 }
               );
             }
