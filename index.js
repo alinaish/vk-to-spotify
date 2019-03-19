@@ -1,7 +1,8 @@
 const fs = require('fs');
 const htmlParser = require('node-html-parser');
-const request = require('request');
+const axios = require('axios');
 const express = require('express');
+const qs = require('querystring');
 
 function getVKPlaylistFromHtml() {
   const vkHtmlPath = process.argv[2];
@@ -40,80 +41,101 @@ app.get('/', (req, res) => {
   res.redirect(spotifyCodeURL);
 });
 
-app.get('/callback', (req, res) => {
+app.get('/callback', async (req, res) => {
   if (req.query.code) {
-    const tokenReqParams = {
-      url: 'https://accounts.spotify.com/api/token',
-      form: {
+    const smth = await axios.post(
+      'https://accounts.spotify.com/api/token',
+      qs.stringify({
         code: req.query.code,
         redirect_uri: redirectURI,
         grant_type: 'authorization_code',
-      },
-      headers: {
-        Authorization:
-          'Basic ' + new Buffer(clientId + ':' + secret).toString('base64'),
-      },
-      json: true,
-    };
-    request.post(tokenReqParams, (error, tokenRes, body) => {
-      if (tokenRes.body.access_token) {
-        const userPropfileReqOptions = {
-          url: 'https://api.spotify.com/v1/me',
-          headers: {
-            Authorization: `Bearer ${tokenRes.body.access_token}`,
-          },
-          json: true,
-        };
-        request.get(
-          userPropfileReqOptions,
-          (error, userProfileReq, userProfileBody) => {
-            console.log(userProfileBody.id);
-            if (userProfileBody.id) {
-              const createPlaylistOptions = {
-                url: `https://api.spotify.com/v1/users/${
-                  userProfileBody.id
-                }/playlists`,
-                headers: {
-                  Authorization: `Bearer ${tokenRes.body.access_token}`,
-                  'Content-Type': 'application/json',
-                },
-                body: {
-                  name: 'test_playlist',
-                  public: false,
-                  description: 'created by nodejs script',
-                },
-                json: true,
-              };
-              request.post(
-                createPlaylistOptions,
-                (error, createPlaylistRes, createPlaylistBody) => {
-                  const tracks = getVKPlaylistFromHtml();
-
-                  tracks.forEach(track => {
-                    const artist = track.artist.replace(' ', '+');
-                    const name = track.name.replace(' ', '+');
-                    const searchUrl = `https://api.spotify.com/v1/search?q=${artist}+${name}&type=track`;
-                    const searchReqOptions = {
-                      url: searchUrl,
-                      headers: {
-                        Authorization: `Bearer ${tokenRes.body.access_token}`,
-                      },
-                      json: true,
-                    };
-
-                    request.get(
-                      searchReqOptions,
-                      (error, searchReq, searchReqBody) => {
-                        console.log(track.artist, track.name, searchReqBody);
-                      }
-                    );
-                  });
-                }
-              );
-            }
-          }
-        );
+      }),
+      {
+        headers: {
+          Authorization:
+            'Basic ' + new Buffer(clientId + ':' + secret).toString('base64'),
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
       }
-    });
+    );
+    console.log(smth);
   }
 });
+
+// app.get('/callback', (req, res) => {
+//   if (req.query.code) {
+//     const tokenReqParams = {
+//       url: 'https://accounts.spotify.com/api/token',
+//       form: {
+//         code: req.query.code,
+//         redirect_uri: redirectURI,
+//         grant_type: 'authorization_code',
+//       },
+//       headers: {
+//         Authorization:
+//           'Basic ' + new Buffer(clientId + ':' + secret).toString('base64'),
+//       },
+//       json: true,
+//     };
+//     request.post(tokenReqParams, (error, tokenRes, body) => {
+//       if (tokenRes.body.access_token) {
+//         const userPropfileReqOptions = {
+//           url: 'https://api.spotify.com/v1/me',
+//           headers: {
+//             Authorization: `Bearer ${tokenRes.body.access_token}`,
+//           },
+//           json: true,
+//         };
+//         request.get(
+//           userPropfileReqOptions,
+//           (error, userProfileReq, userProfileBody) => {
+//             console.log(userProfileBody.id);
+//             if (userProfileBody.id) {
+//               const createPlaylistOptions = {
+//                 url: `https://api.spotify.com/v1/users/${
+//                   userProfileBody.id
+//                 }/playlists`,
+//                 headers: {
+//                   Authorization: `Bearer ${tokenRes.body.access_token}`,
+//                   'Content-Type': 'application/json',
+//                 },
+//                 body: {
+//                   name: 'test_playlist',
+//                   public: false,
+//                   description: 'created by nodejs script',
+//                 },
+//                 json: true,
+//               };
+//               request.post(
+//                 createPlaylistOptions,
+//                 (error, createPlaylistRes, createPlaylistBody) => {
+//                   const tracks = getVKPlaylistFromHtml();
+
+//                   tracks.forEach(track => {
+//                     const artist = track.artist.replace(' ', '+');
+//                     const name = track.name.replace(' ', '+');
+//                     const searchUrl = `https://api.spotify.com/v1/search?q=${artist}+${name}&type=track`;
+//                     const searchReqOptions = {
+//                       url: searchUrl,
+//                       headers: {
+//                         Authorization: `Bearer ${tokenRes.body.access_token}`,
+//                       },
+//                       json: true,
+//                     };
+
+//                     request.get(
+//                       searchReqOptions,
+//                       (error, searchReq, searchReqBody) => {
+//                         console.log(track.artist, track.name, searchReqBody);
+//                       }
+//                     );
+//                   });
+//                 }
+//               );
+//             }
+//           }
+//         );
+//       }
+//     });
+//   }
+// });
