@@ -42,23 +42,29 @@ app.get('/', (req, res) => {
 });
 
 app.get('/callback', async (req, res) => {
+  // spotify provide code in a query string
   if (req.query.code) {
-    const smth = await axios.post(
-      'https://accounts.spotify.com/api/token',
-      qs.stringify({
-        code: req.query.code,
-        redirect_uri: redirectURI,
-        grant_type: 'authorization_code',
-      }),
-      {
-        headers: {
-          Authorization:
-            'Basic ' + new Buffer(clientId + ':' + secret).toString('base64'),
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-      }
-    );
-    console.log(smth);
+    try {
+      // request access and refresh tokens
+      const res = await axios.post(
+        'https://accounts.spotify.com/api/token',
+        qs.stringify({
+          code: req.query.code,
+          redirect_uri: redirectURI,
+          grant_type: 'authorization_code',
+        }),
+        {
+          headers: {
+            Authorization:
+              'Basic ' + new Buffer(clientId + ':' + secret).toString('base64'),
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+        }
+      );
+      console.log(res.data);
+    } catch (e) {
+      console.error(e);
+    }
   }
 });
 
