@@ -32,6 +32,15 @@ const clientId = '2d53491834a9437eb3b5ccb7cdce4832';
 const scope = 'playlist-modify-private';
 const redirectURI = 'http://localhost:8888/callback';
 
+/**
+ * Steps that are need to be made for adding songs to playlist
+ * 1. Get a code after redirecting users to https://accounts.spotify.com/authorize
+ * 2. Get access token
+ * 3. Request user profile data to use user id after
+ * 4. Create a playlist
+ * ...
+ */
+
 app.get('/', (req, res) => {
   const encodedRedirectURI = encodeURIComponent(
     'http://localhost:8888/callback'
@@ -41,7 +50,21 @@ app.get('/', (req, res) => {
   res.redirect(spotifyCodeURL);
 });
 
-async function requestAccessToken(code) {
+app.get('/callback', async (req, res) => {
+  if (req.query.code) {
+    const tokens = await fetchAccessToken(req.query.code);
+    const token = tokens.access_token;
+    if (token) {
+      const profile = await fetchUserProfile(token);
+
+      if (profile.id) {
+        const playlist = await createPlaylist(profile.id, token);
+      }
+    }
+  }
+});
+
+async function fetchAccessToken(code) {
   try {
     const authEncoded = Buffer.from(clientId + ':' + secret).toString('base64');
     // request access and refresh tokens
@@ -65,35 +88,43 @@ async function requestAccessToken(code) {
   }
 }
 
-async function requestUserProfile(accessToken) {
+async function fetchUserProfile(token) {
   try {
-    const profile = await axios.get('https://api.spotify.com/v1/me', {
+    const res = await axios.get('https://api.spotify.com/v1/me', {
       headers: {
-        Authorization: `Bearer ${accessToken}`,
+        Authorization: `Bearer ${token}`,
       },
     });
 
-    console.log('profile request');
-    console.log(profile);
-    return profile.data;
+    return res.data;
   } catch (e) {
     console.error(e);
   }
 }
 
-app.get('/callback', async (req, res) => {
-  if (req.query.code) {
-    const tokens = await requestAccessToken(req.query.code);
-    console.log('tokens');
-    console.log(tokens);
-    const accessToken = tokens.access_token;
-    if (accessToken) {
-      const profile = await requestUserProfile(accessToken);
-      console.log('profile');
-      console.log(profile);
-    }
+async function createPlaylist(userId, token) {
+  try {
+    const res = await axios.post(
+      `https://api.spotify.com/v1/users/${userId}/playlists`,
+      {
+        name: 'test_playlist',
+        public: false,
+        description: 'created by nodejs script',
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    console.log(res);
+    return res.data;
+  } catch (e) {
+    console.log(e);
   }
-});
+}
 
 // app.get('/callback', (req, res) => {
 //   if (req.query.code) {
@@ -120,7 +151,7 @@ app.get('/callback', async (req, res) => {
 //           json: true,
 //         };
 //         request.get(
-//           userPropfileReqOptions,
+//           userProfileReqOptions,
 //           (error, userProfileReq, userProfileBody) => {
 //             console.log(userProfileBody.id);
 //             if (userProfileBody.id) {
