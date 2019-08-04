@@ -51,6 +51,8 @@ app.get('/', (req, res) => {
 });
 
 app.get('/callback', async (req, res) => {
+  res.send('Hello world');
+  // Rewrite to flat structure
   if (req.query.code) {
     const tokens = await fetchAccessToken(req.query.code);
     const token = tokens.access_token;
@@ -59,6 +61,13 @@ app.get('/callback', async (req, res) => {
 
       if (profile.id) {
         const playlist = await createPlaylist(profile.id, token);
+
+        if (playlist) {
+          const uris = await findTrackUris(token);
+          await addTracksToPlaylist(token, playlist.id, uris);
+
+          process.exit();
+        }
       }
     }
   }
@@ -107,7 +116,7 @@ async function createPlaylist(userId, token) {
     const res = await axios.post(
       `https://api.spotify.com/v1/users/${userId}/playlists`,
       {
-        name: 'test_playlist',
+        name: 'from VK',
         public: false,
         description: 'created by nodejs script',
       },
@@ -119,87 +128,80 @@ async function createPlaylist(userId, token) {
       }
     );
 
-    console.log(res);
     return res.data;
   } catch (e) {
     console.log(e);
   }
 }
 
-// app.get('/callback', (req, res) => {
-//   if (req.query.code) {
-//     const tokenReqParams = {
-//       url: 'https://accounts.spotify.com/api/token',
-//       form: {
-//         code: req.query.code,
-//         redirect_uri: redirectURI,
-//         grant_type: 'authorization_code',
-//       },
-//       headers: {
-//         Authorization:
-//           'Basic ' + new Buffer(clientId + ':' + secret).toString('base64'),
-//       },
-//       json: true,
-//     };
-//     request.post(tokenReqParams, (error, tokenRes, body) => {
-//       if (tokenRes.body.access_token) {
-//         const userPropfileReqOptions = {
-//           url: 'https://api.spotify.com/v1/me',
-//           headers: {
-//             Authorization: `Bearer ${tokenRes.body.access_token}`,
-//           },
-//           json: true,
-//         };
-//         request.get(
-//           userProfileReqOptions,
-//           (error, userProfileReq, userProfileBody) => {
-//             console.log(userProfileBody.id);
-//             if (userProfileBody.id) {
-//               const createPlaylistOptions = {
-//                 url: `https://api.spotify.com/v1/users/${
-//                   userProfileBody.id
-//                 }/playlists`,
-//                 headers: {
-//                   Authorization: `Bearer ${tokenRes.body.access_token}`,
-//                   'Content-Type': 'application/json',
-//                 },
-//                 body: {
-//                   name: 'test_playlist',
-//                   public: false,
-//                   description: 'created by nodejs script',
-//                 },
-//                 json: true,
-//               };
-//               request.post(
-//                 createPlaylistOptions,
-//                 (error, createPlaylistRes, createPlaylistBody) => {
-//                   const tracks = getVKPlaylistFromHtml();
+async function findTrackUris(token) {
+  const parsedTracks = getVKPlaylistFromHtml();
+  const uris = [];
+  let foundCount = 0;
+  let notFoundCount = 0;
+  const notFoundTracks = [];
 
-//                   tracks.forEach(track => {
-//                     const artist = track.artist.replace(' ', '+');
-//                     const name = track.name.replace(' ', '+');
-//                     const searchUrl = `https://api.spotify.com/v1/search?q=${artist}+${name}&type=track`;
-//                     const searchReqOptions = {
-//                       url: searchUrl,
-//                       headers: {
-//                         Authorization: `Bearer ${tokenRes.body.access_token}`,
-//                       },
-//                       json: true,
-//                     };
+  console.log(`Tracks total: ${parsedTracks.length}`);
 
-//                     request.get(
-//                       searchReqOptions,
-//                       (error, searchReq, searchReqBody) => {
-//                         console.log(track.artist, track.name, searchReqBody);
-//                       }
-//                     );
-//                   });
-//                 }
-//               );
-//             }
-//           }
-//         );
-//       }
-//     });
-//   }
-// });
+  try {
+    for (let i = 0; i < parsedTracks.length; i++) {
+      const parsedTrackInfo = parsedTracks[i];
+
+      const artist = parsedTrackInfo.artist.replace(' ', '+');
+      const encodedArtist = encodeURIComponent(artist);
+
+      const name = parsedTrackInfo.name.replace(' ', '+');
+      const encodedName = encodeURIComponent(name);
+      const searchUrl = `https://api.spotify.com/v1/search?q=${encodedArtist}+${encodedName}&type=track`;
+
+      const track = await axios.get(searchUrl, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (track.data.tracks && track.data.tracks.total > 0) {
+        foundCount++;
+        uris.push(track.data.tracks.items[0].uri);
+        console.log(
+          `${i}. ${artist} - ${name} uri:${track.data.tracks.items[0].uri}`
+        );
+      } else {
+        notFoundCount++;
+        notFoundTracks.push[`${artist} - ${name}`];
+        console.log(`${i}. ${artist} - ${name} uri: none`);
+      }
+    }
+
+    console.log(`Found: ${foundCount}`);
+    console.log(`Not found: ${notFoundCount}`, notFoundTracks);
+
+    return uris;
+  } catch (e) {
+    console.log(e);
+  }
+}
+
+async function addTracksToPlaylist(token, playlistId, uris) {
+  try {
+    while (uris.length > 0) {
+      // 100 is a max limit of tracks that can be added at once
+      const uriChunk = uris.splice(0, 100);
+      console.log(uriChunk);
+      const response = await axios.post(
+        `https://api.spotify.com/v1/playlists/${playlistId}/tracks`,
+        {
+          uris: uriChunk,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      console.log(response.data);
+    }
+  } catch (e) {
+    console.log(e.error);
+  }
+}
