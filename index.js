@@ -27,8 +27,8 @@ const app = express();
 
 app.listen(8888);
 
-const secret = '36e2af1f054449fc8fd82ba5a73ca233';
-const clientId = '2d53491834a9437eb3b5ccb7cdce4832';
+const secret = process.env.secret;
+const clientId = process.env.clientId;
 const scope = 'playlist-modify-private';
 const redirectURI = 'http://localhost:8888/callback';
 
