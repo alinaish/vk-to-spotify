@@ -11,7 +11,7 @@
   "license": "ISC",
   "devDependencies": {},
   "dependencies": {
-    "axios": "^0.18.1",
+    "axios": "^0.21.1",
     "express": "^4.17.1",
     "node-html-parser": "^1.1.16",
     "querystring": "^0.2.0",
